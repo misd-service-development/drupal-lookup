@@ -1,7 +1,7 @@
 Lookup details
 ==============
 
-This module inserts and maintains certain user details from [Lookup]((http://www.lookup.cam.ac.uk/)),
+This module inserts and maintains certain user details from [Lookup](http://www.lookup.cam.ac.uk/),
 the University of Cambridge directory, for users accessing Drupal through
 [Raven](http://www.raven.cam.ac.uk/).
 
