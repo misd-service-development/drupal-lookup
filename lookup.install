@@ -1,0 +1,57 @@
+<?php
+
+/**
+ * @file
+ * Install, update, and uninstall functions for the Lookup details module.
+ */
+
+/**
+ * Implements hook_requirements().
+ */
+function lookup_requirements($phase) {
+  $requirements = array();
+
+  if (function_exists('ldap_connect') == FALSE) {
+    $requirements['ldap'] = array(
+      'title' => st('PHP LDAP library'),
+      'value' => st('Not installed'),
+      'description' => st('The <a href="@url">PHP LDAP library</a> is not installed', array('@url' => 'http://php.net/manual/en/book.ldap.php')),
+      'severity' => REQUIREMENT_ERROR,
+    );
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implements hook_schema().
+ */
+function lookup_schema() {
+  $schema['users_lookup_detail'] = array(
+    'description' => st('User details taken from Lookup that are not stored in the users table.'),
+    'fields' => array(
+      'uid' => array(
+        'description' => st('User ID, links to User table.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'name' => array(
+        'description' => st('The display name of the user.'),
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('uid'),
+    'foreign keys' => array(
+      'users' => array(
+        'table' => 'users',
+        'columns' => array('uid' => 'uid'),
+      ),
+    ),
+  );
+
+  return $schema;
+}

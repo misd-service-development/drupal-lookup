@@ -1,0 +1,330 @@
+<?php
+
+const LOOKUP_HELP_PATH = 'admin/help#lookup';
+
+/**
+ * Implements hook_help().
+ */
+function lookup_help($path, $arg) {
+  global $base_url;
+
+  $output = '';
+
+  switch ($path) {
+    case LOOKUP_HELP_PATH:
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('The Lookup details modules updates the details of users who have logged in using the <a href="@raven_help_path">Raven authentication module</a>.', array(
+        '@lookup_url' => 'http://www.lookup.cam.ac.uk/',
+        '@raven_help_path' => url(RAVEN_HELP_PATH),
+      )) . '</p>';
+
+      $output .= '<h3>' . t('Fields') . '</h3>';
+      $output .= '<p>' . t('All Lookup-maintained fields are shown on the user edit form, but are disabled as any changes would be overwritten.') . '</p>';
+
+      $output .= '<dl>';
+
+      $output .= '<dt>' . t('Name') . '</dt>';
+      $output .= '<dd>' . t('The user\'s display name in Lookup is added to the username and password section on the profile page. If the display name itself is suppressed in Lookup, the registered name is used. If that\'s suppressed, Lookup simply reverts to the CRSid.') . '</dd>';
+      $output .= '<dd>' . t('It is available is a token (<code>[user:lookup-name]</code>) for use in modules such as <a href="@realname_url">RealName</a>, and is also a filter in views.', array('@realname_url' => 'http://drupal.org/project/realname')) . '</dd>';
+
+      $output .= '<dt>' . t('E-mail address') . '</dt>';
+      $output .= '<dd>' . t('If the user\'s primary e-mail address in Lookup is available, the e-mail address in Drupal is replaced. If it is suppressed, the existing value is left unchanged.') . '</dd>';
+
+      $output .= '</dl>';
+      break;
+  }
+
+  return $output;
+}
+
+/**
+ * Implements hook_views_api().
+ */
+function lookup_views_api() {
+  return array('api' => 3);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() for user_profile_form().
+ */
+function lookup_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
+  if (is_raven_user($form['#user'])) {
+    // Add in extra Lookup fields
+    $form['account']['lookup_name'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Name'),
+      '#maxlength' => USERNAME_MAX_LENGTH,
+      '#description' => t('Display name as set in Lookup.'),
+      '#required' => TRUE,
+      '#attributes' => array('class' => array('lookup_name')),
+      '#default_value' => $form['#user']->lookup['name'],
+      '#weight' => -9, // after CRSid
+      '#disabled' => TRUE,
+    );
+
+    // Prevent editing of other Lookup-maintained fields
+    $form['account']['mail']['#disabled'] = TRUE;
+
+    // Tweak descriptions
+    $form['account']['mail']['#description'] = t('The primary e-mail address as set in Lookup.');
+  }
+}
+
+/**
+ * Implements hook_raven_register_alter().
+ */
+function lookup_raven_register_alter(&$edit, $account) {
+  // Get e-mail address from Lookup in case an e-mail's going to be sent
+  $details = user_lookup_details($edit['name'], array('mail'));
+
+  if (isset($details['mail'])) {
+    $edit['init'] = $details['mail'];
+  }
+}
+
+/**
+ * Get Lookup details for a CRSid.
+ *
+ * @param string $name
+ *   User CRSid.
+ * @param array $terms
+ *   Terms to query. Possible keys are:
+ *   - displayname: Display name (potentially registered name or even CRSid if unavailable).
+ *   - mail: E-mail address.
+ *
+ * @return array
+ *   Lookup details.
+ */
+function user_lookup_details($name, $terms = array('displayname', 'mail')) {
+  $details = array();
+
+  $ds = ldap_connect('ldap.lookup.cam.ac.uk');
+
+  if ($ds) {
+    $r = ldap_bind($ds);
+
+    $sr = ldap_search($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', 'uid=' . $name, $terms);
+    $info = ldap_get_entries($ds, $sr);
+
+    if ($info['count'] == 1) {
+      foreach ($terms as $term) {
+        if (isset($info[0][$term][0]) && trim($info[0][$term][0]) != '') {
+          $details[$term] = $info[0][$term][0];
+        }
+      }
+    }
+
+    ldap_close($ds);
+  }
+
+  return $details;
+}
+
+
+function get_user_lookup_details(&$edit, $account) {
+  $details = user_lookup_details(isset($edit['name']) ? $edit['name'] : $account->name, array(
+    'displayname',
+    'mail'
+  ));
+  if (isset($details['mail'])) {
+    $edit['mail'] = $details['mail'];
+  }
+  $edit['lookup'] = array();
+  if (isset($details['displayname'])) {
+    $edit['lookup']['name'] = $details['displayname'];
+  }
+}
+
+/**
+ * Implements hook_user_load().
+ */
+function lookup_user_load(array $accounts) {
+  // Add in Lookup details for each user
+  $details = lookup_load_multiple($accounts);
+  foreach ($details as $uid => $detail) {
+    if (is_raven_user($accounts[$uid])) {
+      $accounts[$uid]->lookup = $detail;
+    }
+  }
+}
+
+function lookup_user_presave(array &$edit, stdClass $account, $category) {
+  if (is_raven_user($account)) {
+    get_user_lookup_details($edit, $account);
+  }
+}
+
+/**
+ * Implements hook_user_insert().
+ */
+function lookup_user_insert(array &$edit, stdClass $account, $category) {
+  lookup_update($account);
+}
+
+/**
+ * Implements hook_user_update().
+ */
+function lookup_user_update(array &$edit, stdClass $account, $category) {
+  lookup_update($account);
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function lookup_user_delete(stdClass $account) {
+  if (is_raven_user($account)) {
+    lookup_delete($account->uid);
+  }
+}
+
+/**
+ * Implements hook_user_operations().
+ */
+function lookup_user_operations() {
+  $operations['lookup_update'] = array(
+    'label' => t('Update Lookup details for Raven users'),
+    'callback' => 'lookup_user_operations_lookup_update',
+  );
+  return $operations;
+}
+
+/**
+ * Callback function for admin mass updating Raven user Lookup details.
+ *
+ * @param array $uids
+ *   An array of user IDs.
+ *
+ * @see lookup_user_operations()
+ */
+function lookup_user_operations_lookup_update(array $uids) {
+  $accounts = user_load_multiple($uids);
+  foreach ($accounts as $account) {
+    if (is_raven_user($account)) {
+      $edit = array();
+      get_user_lookup_details($edit, $account);
+      user_save($account, $edit);
+      lookup_update($account);
+    }
+  }
+}
+
+/**
+ * Implements hook_action_info().
+ */
+function lookup_action_info() {
+  $info['lookup_action_lookup_update'] = array(
+    'type' => 'user',
+    'label' => t('Update Lookup details'),
+    'configurable' => FALSE,
+  );
+
+  return $info;
+}
+
+/**
+ * Action callback to update a Raven user's Lookup details.
+ *
+ * @see lookup_action_info()
+ */
+function lookup_action_lookup_update($account, $context = array()) {
+  lookup_delete($account->uid);
+}
+
+
+/**
+ * @addtogroup lookup
+ * @{
+ */
+
+/**
+ * Loads Lookup details for a user.
+ *
+ * @param StdClass $account
+ *   A user account object.
+ *
+ * @return array
+ *   The user's Lookup details.
+ */
+function lookup_load(stdClass $account) {
+  $details = lookup_load_multiple(array($account->uid => $account));
+  return reset($details);
+}
+
+/**
+ * Loads multiple Lookup details.
+ *
+ * @param array $accounts
+ *   An array of user account objects keyed by user ID.
+ *
+ * @return array
+ *   An array of Lookup details keyed by user ID.
+ */
+function lookup_load_multiple(array $accounts) {
+  $details = db_select('users_lookup_detail', 'd')
+    ->fields('d', array('uid', 'name'))
+    ->condition('uid', array_keys($accounts), 'IN')
+    ->range(NULL, 1)
+    ->execute()
+    ->fetchAllAssoc('uid', PDO::FETCH_ASSOC);
+
+  // In the event that a row isn't found for a user, create a temporary empty array.
+  $new_accounts = array_diff_key($accounts, $details);
+
+  foreach ($new_accounts as $uid => $new_account) {
+    $details[$uid] = array(
+      'name' => NULL,
+    );
+  }
+
+  return $details;
+}
+
+/**
+ * Update Lookup details for a user.
+ *
+ * @param StdClass $account
+ */
+function lookup_update(StdClass $account) {
+  if (is_raven_user($account)) {
+    // Save to the database and the static cache.
+    db_merge('users_lookup_detail')
+      ->key(array('uid' => $account->uid))
+      ->fields($account->lookup)
+      ->execute();
+  }
+}
+
+/**
+ * Delete a real name.
+ *
+ * @param $uid
+ *   A user ID.
+ */
+function lookup_delete($uid) {
+  return lookup_delete_multiple(array($uid));
+}
+
+/**
+ * Delete multiple real names.
+ *
+ * @param $uids
+ *   An array of user IDs.
+ */
+function lookup_delete_multiple(array $uids) {
+  db_delete('users_lookup_detail')->condition('uid', $uids, 'IN')->execute();
+  drupal_static_reset('lookup_load_multiple');
+  entity_get_controller('user')->resetCache($uids);
+}
+
+/**
+ * Delete all real names.
+ */
+function lookup_delete_all() {
+  db_delete('users_lookup_detail')->execute();
+  drupal_static_reset('lookup_load_multiple');
+  entity_get_controller('user')->resetCache();
+}
+
+/**
+ * @} End of 'addtogroup lookup'.
+ */

@@ -1,0 +1,10 @@
+name = Lookup details
+description = Updates user details using the Lookup directory.
+core = 7.x
+package = University of Cambridge
+version = 7.x-0.1-dev
+
+dependencies[] = raven
+
+files[] = lookup.module
+files[] = lookup.tokens.inc
