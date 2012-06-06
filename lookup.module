@@ -1,6 +1,8 @@
 <?php
 
 const LOOKUP_HELP_PATH = 'admin/help#lookup';
+const LOOKUP_HOSTNAME = 'ldap.lookup.cam.ac.uk';
+const LOOKUP_BASE_DN = 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk';
 
 /**
  * Implements hook_help().
@@ -98,12 +100,12 @@ function lookup_raven_register_alter(&$edit, $account) {
 function user_lookup_details($name, $terms = array('displayname', 'mail')) {
   $details = array();
 
-  $ds = ldap_connect('ldap.lookup.cam.ac.uk');
+  $ds = ldap_connect(LOOKUP_HOSTNAME);
 
   if ($ds) {
     $r = ldap_bind($ds);
 
-    $sr = ldap_search($ds, 'ou=people,o=University of Cambridge,dc=cam,dc=ac,dc=uk', 'uid=' . $name, $terms);
+    $sr = ldap_search($ds, LOOKUP_BASE_DN, 'uid=' . $name, $terms);
     $info = ldap_get_entries($ds, $sr);
 
     if ($info['count'] == 1) {
