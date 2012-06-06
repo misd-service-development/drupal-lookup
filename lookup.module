@@ -109,10 +109,11 @@ function user_lookup_details($name, $terms = array('displayname', 'mail')) {
     $info = ldap_get_entries($ds, $sr);
 
     if ($info['count'] == 1) {
-      foreach ($terms as $term) {
-        if (isset($info[0][$term][0]) && trim($info[0][$term][0]) != '') {
-          $details[$term] = $info[0][$term][0];
-        }
+      if (isset($info[0]['displayname'][0])) {
+        $details['displayname'] = $info[0]['displayname'][0];
+      }
+      if (isset($info[0]['mail'][0])) {
+        $details['mail'] = $info[0]['mail'][0];
       }
     }
 
