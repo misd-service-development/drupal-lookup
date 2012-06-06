@@ -91,13 +91,13 @@ function lookup_raven_register_alter(&$edit, $account) {
  *   User CRSid.
  * @param array $terms
  *   Terms to query. Possible keys are:
- *   - displayname: Display name (potentially registered name or even CRSid if unavailable).
+ *   - displayName: Display name (potentially registered name or even CRSid if unavailable).
  *   - mail: Primary e-mail address.
  *
  * @return array
  *   Lookup details.
  */
-function user_lookup_details($name, $terms = array('displayname', 'mail')) {
+function user_lookup_details($name, $terms = array('displayName', 'mail')) {
   $details = array();
 
   $ds = ldap_connect(LOOKUP_HOSTNAME);
@@ -110,7 +110,7 @@ function user_lookup_details($name, $terms = array('displayname', 'mail')) {
 
     if ($info['count'] == 1) {
       if (isset($info[0]['displayname'][0])) {
-        $details['displayname'] = $info[0]['displayname'][0];
+        $details['displayName'] = $info[0]['displayname'][0];
       }
       if (isset($info[0]['mail'][0])) {
         $details['mail'] = $info[0]['mail'][0];
@@ -126,15 +126,15 @@ function user_lookup_details($name, $terms = array('displayname', 'mail')) {
 
 function get_user_lookup_details(&$edit, $account) {
   $details = user_lookup_details(isset($edit['name']) ? $edit['name'] : $account->name, array(
-    'displayname',
+    'displayName',
     'mail'
   ));
   if (isset($details['mail'])) {
     $edit['mail'] = $details['mail'];
   }
   $edit['lookup'] = array();
-  if (isset($details['displayname'])) {
-    $edit['lookup']['name'] = $details['displayname'];
+  if (isset($details['displayName'])) {
+    $edit['lookup']['name'] = $details['displayName'];
   }
 }
 
