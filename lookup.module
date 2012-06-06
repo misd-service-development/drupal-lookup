@@ -95,7 +95,9 @@ function lookup_raven_register_alter(&$edit, $account) {
  *   - mail: Primary e-mail address.
  *
  * @return array
- *   Lookup details.
+ *   Lookup details. Data types for possible keys are:
+ *   - displayName: string.
+ *   - mail: string.
  */
 function user_lookup_details($name, $terms = array('displayName', 'mail')) {
   $details = array();
