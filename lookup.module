@@ -92,7 +92,7 @@ function lookup_raven_register_alter(&$edit, $account) {
  * @param array $terms
  *   Terms to query. Possible keys are:
  *   - displayname: Display name (potentially registered name or even CRSid if unavailable).
- *   - mail: E-mail address.
+ *   - mail: Primary e-mail address.
  *
  * @return array
  *   Lookup details.
