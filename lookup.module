@@ -187,7 +187,7 @@ function lookup_user_delete(stdClass $account) {
  */
 function lookup_user_operations() {
   $operations['lookup_update'] = array(
-    'label' => t('Update Lookup details for Raven users'),
+    'label' => t('Update Lookup details'),
     'callback' => 'lookup_user_operations_lookup_update',
   );
   return $operations;
