@@ -64,6 +64,21 @@ function lookup_form_user_profile_form_alter(&$form, &$form_state, $form_id) {
       '#disabled' => TRUE,
     );
 
+    $affiliation_defaults = array();
+    if ($form['#user']->lookup['staff']) {
+      $affiliation_defaults[] = 'staff';
+    }
+    if ($form['#user']->lookup['student']) {
+      $affiliation_defaults[] = 'student';
+    }
+    $form['account']['lookup_affiliation'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Affiliations'),
+      '#options' => array('staff' => t('Staff'), 'student' => t('Student')),
+      '#default_value' => $affiliation_defaults,
+      '#disabled' => TRUE,
+    );
+
     // Prevent editing of other Lookup-maintained fields
     $form['account']['mail']['#disabled'] = TRUE;
 
@@ -93,13 +108,16 @@ function lookup_raven_register_alter(&$edit, $account) {
  *   Terms to query. Possible keys are:
  *   - displayName: Display name (potentially registered name or even CRSid if unavailable).
  *   - mail: Primary e-mail address.
+ *   - misAffiliation: Staff and/or student.
  *
  * @return array
  *   Lookup details. Data types for possible keys are:
  *   - displayName: string.
  *   - mail: string.
+ *   - staff: bool.
+ *   - student: bool.
  */
-function user_lookup_details($name, $terms = array('displayName', 'mail')) {
+function user_lookup_details($name, $terms = array('displayName', 'mail', 'misAffiliation')) {
   $details = array();
 
   $ds = ldap_connect(LOOKUP_HOSTNAME);
@@ -117,6 +135,10 @@ function user_lookup_details($name, $terms = array('displayName', 'mail')) {
       if (isset($info[0]['mail'][0])) {
         $details['mail'] = $info[0]['mail'][0];
       }
+      if (isset($info[0]['misaffiliation'])) {
+        $details['staff'] = in_array('staff', $info[0]['misaffiliation']) ? 1 : 0;
+        $details['student'] = in_array('student', $info[0]['misaffiliation']) ? 1 : 0;
+      }
     }
 
     ldap_close($ds);
@@ -129,7 +151,8 @@ function user_lookup_details($name, $terms = array('displayName', 'mail')) {
 function get_user_lookup_details(&$edit, $account) {
   $details = user_lookup_details(isset($edit['name']) ? $edit['name'] : $account->name, array(
     'displayName',
-    'mail'
+    'mail',
+    'misAffiliation',
   ));
   if (isset($details['mail'])) {
     $edit['mail'] = $details['mail'];
@@ -137,6 +160,8 @@ function get_user_lookup_details(&$edit, $account) {
   $edit['lookup'] = array();
   if (isset($details['displayName'])) {
     $edit['lookup']['name'] = $details['displayName'];
+    $edit['lookup']['staff'] = $details['staff'];
+    $edit['lookup']['student'] = $details['student'];
   }
 }
 
@@ -273,10 +298,16 @@ function lookup_load_multiple(array $accounts) {
     return array();
   }
   $details = db_select('users_lookup_detail', 'd')
-    ->fields('d', array('uid', 'name'))
+    ->fields('d', array('uid', 'name', 'staff', 'student'))
     ->condition('uid', array_keys($accounts), 'IN')
     ->execute()
     ->fetchAllAssoc('uid', PDO::FETCH_ASSOC);
+
+  // Convert boolean string to real booleans, not sure why this has to be done
+  foreach ($details as $uid => $detail) {
+    $details[$uid]['staff'] = ($detail['staff'] == "1");
+    $details[$uid]['student'] = ($detail['student'] == "1");
+  }
 
   // In the event that a row isn't found for a user, create a temporary empty array.
   $new_accounts = array_diff_key($accounts, $details);

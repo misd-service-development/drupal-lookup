@@ -43,6 +43,20 @@ function lookup_schema() {
         'length' => '255',
         'not null' => FALSE,
       ),
+      'staff' => array(
+        'description' => 'Boolean value if the user is a member of staff (1) or not (0).',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'student' => array(
+        'description' => 'Boolean value if the user is a student (1) or not (0).',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
     ),
     'primary key' => array('uid'),
     'foreign keys' => array(
