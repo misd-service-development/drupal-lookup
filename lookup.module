@@ -144,12 +144,16 @@ function get_user_lookup_details(&$edit, $account) {
  * Implements hook_user_load().
  */
 function lookup_user_load(array $accounts) {
-  // Add in Lookup details for each user
-  $details = lookup_load_multiple($accounts);
-  foreach ($details as $uid => $detail) {
-    if (is_raven_user($accounts[$uid])) {
-      $accounts[$uid]->lookup = $detail;
+  $raven_accounts = array();
+  foreach ($accounts as $uid => $account) {
+    if (is_raven_user($account)) {
+      $raven_accounts[$uid] = $account;
     }
+  }
+  // Add in Lookup details for each user
+  $raven_details = lookup_load_multiple($raven_accounts);
+  foreach ($raven_details as $uid => $detail) {
+    $accounts[$uid]->lookup = $detail;
   }
 }
 
@@ -259,7 +263,7 @@ function lookup_load(stdClass $account) {
  * Loads multiple Lookup details.
  *
  * @param array $accounts
- *   An array of user account objects keyed by user ID.
+ *   An array of Raven user account objects keyed by user ID.
  *
  * @return array
  *   An array of Lookup details keyed by user ID.
@@ -268,7 +272,6 @@ function lookup_load_multiple(array $accounts) {
   $details = db_select('users_lookup_detail', 'd')
     ->fields('d', array('uid', 'name'))
     ->condition('uid', array_keys($accounts), 'IN')
-    ->range(NULL, 1)
     ->execute()
     ->fetchAllAssoc('uid', PDO::FETCH_ASSOC);
 
@@ -276,9 +279,11 @@ function lookup_load_multiple(array $accounts) {
   $new_accounts = array_diff_key($accounts, $details);
 
   foreach ($new_accounts as $uid => $new_account) {
-    $details[$uid] = array(
-      'name' => NULL,
-    );
+    if (is_raven_user($new_account)) {
+      $details[$uid] = array(
+        'name' => NULL,
+      );
+    }
   }
 
   return $details;
