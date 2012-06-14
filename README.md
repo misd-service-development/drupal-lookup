@@ -30,3 +30,11 @@ It is available is a token (`[user:lookup-name]`) for use in modules such as [Re
 ### E-mail address
 
 If the user's primary e-mail address in Lookup is available, the e-mail address in Drupal is replaced. If it is suppressed, the existing value is left unchanged.
+
+### Staff
+
+A boolean whether the user is a member of staff or not. It is available as a filter in views.
+
+### Student
+
+A boolean whether the user is a student or not. It is available as a filter in views.
