@@ -9,7 +9,7 @@
  * Implements hook_views_data().
  */
 function lookup_views_data() {
-  $data['users_lookup_detail']['table']['group']  = t('Lookup');
+  $data['users_lookup_detail']['table']['group'] = t('Lookup');
   $data['users_lookup_detail']['table']['join'] = array(
     'users' => array(
       'left_field' => 'uid',
