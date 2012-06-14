@@ -269,6 +269,9 @@ function lookup_load(stdClass $account) {
  *   An array of Lookup details keyed by user ID.
  */
 function lookup_load_multiple(array $accounts) {
+  if (count($accounts) == 0) {
+    return array();
+  }
   $details = db_select('users_lookup_detail', 'd')
     ->fields('d', array('uid', 'name'))
     ->condition('uid', array_keys($accounts), 'IN')
