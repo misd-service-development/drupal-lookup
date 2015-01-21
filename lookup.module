@@ -135,11 +135,18 @@ function user_lookup_details($name, $terms = array('displayName', 'mail', 'misAf
       if (isset($info[0]['mail'][0])) {
         $details['mail'] = $info[0]['mail'][0];
       }
+      
+      $details['staff'] = 0;
+      $details['student'] = 0;
+      
       if (isset($info[0]['misaffiliation'])) {
-        $details['staff'] = in_array('staff', $info[0]['misaffiliation']) ? 1 : 0;
-        $details['student'] = in_array('student', $info[0]['misaffiliation']) ? 1 : 0;
+        if ( in_array('staff', $info[0]['misaffiliation']) ){ 
+          $details['staff'] = 1;
+        }
+        if ( in_array('student', $info[0]['misaffiliation']) ){ 
+          $details['student'] = 1;
+        }
       }
-    }
 
     ldap_close($ds);
   }
